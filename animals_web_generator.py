@@ -3,93 +3,126 @@ import json
 from html import escape
 
 
-# File paths used by the application.
-DATA_FILE = "animals_data.json"
-TEMPLATE_FILE = "animals_template.html"
-OUTPUT_FILE = "animals.html"
-
-# Placeholder in the HTML template.
-TEMPLATE_PLACEHOLDER = "__REPLACE_ANIMALS_INFO__"
-
-
 def load_data(file_path):
-    """Load animal data from a JSON file."""
+    """Loads a JSON file."""
     with open(file_path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
+def get_skin_types(animals):
+    """Returns all available skin types."""
+    skin_types = set()
+
+    for animal in animals:
+        skin_type = animal["characteristics"].get("skin_type")
+
+        if skin_type:
+            skin_types.add(skin_type)
+
+    return sorted(skin_types)
+
+
+def choose_skin_type(skin_types):
+    """Asks the user to select a skin type."""
+    print("Available skin types:")
+
+    for skin_type in skin_types:
+        print(f"- {skin_type}")
+
+    print("- No skin_type")
+
+    selected_type = input(
+        "\nEnter a skin_type (or 'all' for all animals): "
+    ).strip()
+
+    if selected_type.lower() == "all":
+        return None
+
+    if selected_type.lower() == "no skin_type":
+        return ""
+
+    return selected_type
+
+
+def filter_animals(animals, selected_type):
+    """Returns animals matching the selected skin type."""
+    if selected_type is None:
+        return animals
+
+    filtered_animals = []
+
+    for animal in animals:
+        skin_type = animal["characteristics"].get("skin_type", "")
+
+        if skin_type.lower() == selected_type.lower():
+            filtered_animals.append(animal)
+
+    return filtered_animals
+
+
 def serialize_animal(animal_obj):
-    """Convert one animal object into an HTML card."""
+    """Converts one animal into an HTML card."""
     name = escape(animal_obj["name"])
     characteristics = animal_obj["characteristics"]
 
     diet = escape(characteristics["diet"])
     location = escape(animal_obj["locations"][0])
 
-    # Build the HTML card for one animal.
     output = '<li class="cards__item">\n'
     output += f'    <div class="card__title">{name}</div>\n'
-    output += '    <p class="card__text">\n'
+    output += '    <div class="card__text">\n'
+    output += '        <ul class="card__list">\n'
 
-    output += f'        <strong>Diet:</strong> {diet}<br/>\n'
     output += (
-        f'        <strong>Location:</strong> {location}<br/>\n'
+        f'            <li><strong>Diet:</strong> {diet}</li>\n'
     )
 
-    # Add the type only when it is available.
+    output += (
+        f'            <li><strong>Location:</strong> {location}</li>\n'
+    )
+
     if "type" in characteristics:
         animal_type = escape(characteristics["type"])
         output += (
-            f'        <strong>Type:</strong> {animal_type}<br/>\n'
+            f'            <li><strong>Type:</strong> {animal_type}</li>\n'
         )
 
-    output += "    </p>\n"
+    output += "        </ul>\n"
+    output += "    </div>\n"
     output += "</li>\n"
 
     return output
 
 
-def generate_animal_cards(animals):
-    """Generate HTML cards for all animals."""
-    output = ""
-
-    for animal in animals:
-        output += serialize_animal(animal)
-
-    return output
-
-
-def load_template(file_path):
-    """Load the HTML template from a file."""
-    with open(file_path, "r", encoding="utf-8") as handle:
-        return handle.read()
-
-
-def write_html(file_path, html_content):
-    """Write HTML content to a file."""
-    with open(file_path, "w", encoding="utf-8") as handle:
-        handle.write(html_content)
-
-
 def main():
-    """Generate the animal website from the JSON data."""
-    # Load the animal data.
-    animals_data = load_data(DATA_FILE)
+    animals_data = load_data("animals_data.json")
 
-    # Convert the animal data into HTML cards.
-    animal_cards = generate_animal_cards(animals_data)
+    skin_types = get_skin_types(animals_data)
+    selected_type = choose_skin_type(skin_types)
 
-    # Load the HTML template.
-    template = load_template(TEMPLATE_FILE)
-
-    # Insert the animal cards into the template.
-    html_content = template.replace(
-        TEMPLATE_PLACEHOLDER,
-        animal_cards
+    filtered_animals = filter_animals(
+        animals_data,
+        selected_type
     )
 
-    # Save the completed HTML page.
-    write_html(OUTPUT_FILE, html_content)
+    output = ""
+
+    for animal in filtered_animals:
+        output += serialize_animal(animal)
+
+    with open("animals_template.html", "r", encoding="utf-8") as handle:
+        template = handle.read()
+
+    html_content = template.replace(
+        "__REPLACE_ANIMALS_INFO__",
+        output
+    )
+
+    with open("animals.html", "w", encoding="utf-8") as handle:
+        handle.write(html_content)
+
+    print("\nWebsite generated successfully!")
+    print(f"Animals displayed: {len(filtered_animals)}")
 
 
 if __name__ == "__main__":
